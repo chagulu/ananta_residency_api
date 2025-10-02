@@ -33,6 +33,15 @@ public class ResidenceService {
                 .getMobileNo();
     }
 
+    /**
+     * Returns the residence object by flat and building number.
+     */
+    public Residence getResidenceByFlatAndBuilding(String buildingNumber, String flatNumber) {
+        return residenceRepository.findByBuildingNumberAndFlatNumber(buildingNumber, flatNumber)
+                .orElseThrow(() -> new RuntimeException(
+                        "Residence not found for Building: " + buildingNumber + ", Flat: " + flatNumber
+                ));
+    }
 
     /**
      * Returns filtered residences with pagination.
@@ -59,6 +68,7 @@ public class ResidenceService {
 
         return residenceRepository.findAll(spec, pageable);
     }
+
     /**
      * Fetch a residence by resident mobile number.
      */
@@ -66,5 +76,4 @@ public class ResidenceService {
         return residenceRepository.findByMobileNo(mobileNo)
                 .orElseThrow(() -> new RuntimeException("Residence not found for mobile: " + mobileNo));
     }
-
 }

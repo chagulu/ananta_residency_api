@@ -4,6 +4,7 @@ import com.example.society.guest.dto.GuestVisitRequest;
 import com.example.society.guest.entity.Visitor;
 import com.example.society.guest.repository.GuestEntryRepository;
 import com.example.society.jwt.JwtUtil;
+import com.example.society.model.Residence;
 import com.example.society.service.ResidenceService;
 import com.example.society.service.OtpService;
 import com.example.society.dto.guest.QrTokenResponse;
@@ -11,6 +12,7 @@ import com.example.society.dto.guest.QrEntryInitResponse;
 import com.example.society.dto.guest.QrEntryRequest;
 import com.example.society.dto.guest.VerifyGuestRequest;
 import com.example.society.dto.guest.PendingGuestPayload;
+import com.example.society.service.FcmService;
 
 import jakarta.validation.Valid;
 
@@ -47,6 +49,9 @@ public class GuestVisitController {
     @Autowired
     private OtpService otpService;
 
+     @Autowired
+    private FcmService fcmService;
+
     @Autowired
     private ResidenceService residenceService;
 
@@ -68,122 +73,147 @@ public class GuestVisitController {
     // Manual Guard Entry (keep)
     // =========================
     @PostMapping("/entry")
-    public ResponseEntity<Map<String, Object>> recordGuestEntry(
-            @RequestHeader(name = "Authorization", required = false) String authHeader,
-            @Valid @RequestBody GuestVisitRequest request,
-            BindingResult bindingResult) {
+public ResponseEntity<Map<String, Object>> recordGuestEntry(
+        @RequestHeader(name = "Authorization", required = false) String authHeader,
+        @Valid @RequestBody GuestVisitRequest request,
+        BindingResult bindingResult) {
 
-        logger.info("Received request to record guest entry");
+    logger.info("Received request to record guest entry");
 
-        try {
-            // Validate Authorization header presence and format
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                logger.warn("Authorization header is missing or malformed");
-                Map<String, Object> response = new HashMap<>();
-                response.put("success", false);
-                response.put("message", "Missing or invalid Authorization header");
-                response.put("data", null);
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-            }
+    try {
+        // 1️⃣ Validate Authorization header
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            logger.warn("Authorization header is missing or malformed");
+            return unauthorizedResponse("Missing or invalid Authorization header");
+        }
 
-            String token = authHeader.substring(7);
+        String token = authHeader.substring(7);
 
-            // Validate JWT token
-            if (!jwtUtil.validateToken(token)) {
-                logger.warn("JWT token is invalid or expired");
-                Map<String, Object> response = new HashMap<>();
-                response.put("success", false);
-                response.put("message", "Invalid or expired token");
-                response.put("data", null);
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
-            }
+        // 2️⃣ Validate JWT
+        if (!jwtUtil.validateToken(token)) {
+            logger.warn("JWT token is invalid or expired");
+            return forbiddenResponse("Invalid or expired token");
+        }
 
-            // Handle validation errors
-            if (bindingResult.hasErrors()) {
-                String errorMsg = bindingResult.getAllErrors().stream()
-                        .map(error -> error.getDefaultMessage())
-                        .collect(Collectors.joining("; "));
-                logger.warn("Validation errors: {}", errorMsg);
+        // 3️⃣ Handle validation errors
+        if (bindingResult.hasErrors()) {
+            String errorMsg = bindingResult.getAllErrors().stream()
+                    .map(error -> error.getDefaultMessage())
+                    .collect(Collectors.joining("; "));
+            logger.warn("Validation errors: {}", errorMsg);
+            return badRequestResponse(errorMsg);
+        }
 
-                Map<String, Object> response = new HashMap<>();
-                response.put("success", false);
-                response.put("message", errorMsg);
-                response.put("data", null);
-                return ResponseEntity.badRequest().body(response);
-            }
+        // 4️⃣ Extract mobile from JWT
+        String userMobile = jwtUtil.extractUsername(token);
+        logger.debug("Authenticated user mobile from token: {}", userMobile);
 
-            // Extract user identifier (e.g., mobile number) from JWT token
-            String userMobile = jwtUtil.extractUsername(token);
-            logger.debug("Authenticated user mobile from token: {}", userMobile);
+        // 5️⃣ Create approval token
+        String approvalToken = UUID.randomUUID().toString();
 
-            // Generate unique approval token BEFORE saving visitor
-            String approvalToken = UUID.randomUUID().toString();
+        // 6️⃣ Save visitor
+        Visitor visitor = new Visitor();
+        visitor.setGuestName(request.getGuestName());
+        visitor.setMobile(request.getMobile());
+        visitor.setFlatNumber(request.getFlatNumber());
+        visitor.setBuildingNumber(request.getBuildingNumber());
+        visitor.setVisitPurpose(request.getVisitPurpose());
+        visitor.setVehicleDetails(request.getVehicleDetails());
+        visitor.setVisitTime(LocalDateTime.now());
+        visitor.setCreatedBy(userMobile);
+        visitor.setToken(approvalToken);
+        visitor.setApproveStatus(Visitor.ApproveStatus.PENDING);
 
-            // Build visitor entity
-            Visitor visitor = new Visitor();
-            visitor.setGuestName(request.getGuestName());
-            visitor.setMobile(request.getMobile());
-            visitor.setFlatNumber(request.getFlatNumber());
-            visitor.setBuildingNumber(request.getBuildingNumber());
-            visitor.setVisitPurpose(request.getVisitPurpose());
-            visitor.setVehicleDetails(request.getVehicleDetails());
-            visitor.setVisitTime(LocalDateTime.now());
-            visitor.setCreatedBy(userMobile);
-            visitor.setToken(approvalToken);  // approval token for first-approver link
-            // Ensure default approve_status=PENDING via entity default or set here if needed
-            try {
-                visitor.setApproveStatus(Visitor.ApproveStatus.PENDING);
+        guestEntryRepository.save(visitor);
+        logger.info("Guest entry saved successfully for guest: {}", visitor.getGuestName());
 
-            } catch (Exception ignore) {
-                // if enum default is already handled in entity/DB
-            }
+        // 7️⃣ Build approval link
+        String approvalLink = baseUrl + "/api/visitor/approve?token=" + approvalToken;
 
-            // Save the entry with token
-            guestEntryRepository.save(visitor);
-            logger.info("Guest entry saved successfully for guest: {}", visitor.getGuestName());
+        // 8️⃣ SMS message
+        String message = "Guest " + visitor.getGuestName() + " wants to visit. Approve/Reject: " + approvalLink;
 
-            // Build approval link with token
-            String approvalLink = baseUrl + "/api/visitor/approve?token=" + approvalToken;
+        // 9️⃣ Fetch resident details
+        Residence residence = residenceService.getResidenceByFlatAndBuilding(
+                visitor.getFlatNumber(), visitor.getBuildingNumber());
 
-            // Compose message with short approval link
-            String message = "Guest " + visitor.getGuestName() + " wants to visit. Approve or reject: " + approvalLink;
-
-            // Fetch resident mobile by flat/building
-            String residentMobile = residenceService.getResidentMobile(visitor.getFlatNumber(), visitor.getBuildingNumber());
-
-            // Send SMS to resident
-            boolean smsSent = otpService.sendOtp(residentMobile, message); // ideally use a messaging method, not OTP
+        if (residence != null) {
+            String residentMobile = residence.getMobileNo();
+            boolean smsSent = otpService.sendOtp(residentMobile, message);
             if (!smsSent) {
                 logger.warn("Failed to send approval SMS to resident mobile: {}", residentMobile);
             }
 
-            // Prepare response data
-            Map<String, Object> visitorData = new HashMap<>();
-            visitorData.put("guestName", visitor.getGuestName());
-            visitorData.put("mobile", visitor.getMobile());
-            visitorData.put("flatNumber", visitor.getFlatNumber());
-            visitorData.put("buildingNumber", visitor.getBuildingNumber());
-            visitorData.put("visitPurpose", visitor.getVisitPurpose());
-            visitorData.put("vehicleDetails", visitor.getVehicleDetails());
-            visitorData.put("visitTime", visitor.getVisitTime() != null ? visitor.getVisitTime().toString() : null);
-            visitorData.put("approvalLink", approvalLink);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", "Guest entry recorded successfully and approval link sent");
-            response.put("data", visitorData);
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            logger.error("Error occurred while recording guest entry", e);
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("message", "Failed to record guest entry due to server error");
-            response.put("data", null);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+            // 🔔 Push Notification (new part)
+            if (residence.getFcmToken() != null && !residence.getFcmToken().isEmpty()) {
+                try {
+                    String pushMessage = "Visitor " + visitor.getGuestName() + " has arrived (" + visitor.getVisitPurpose() + ")";
+                    fcmService.sendNotification(residence.getFcmToken(), "Visitor Entry", pushMessage);
+                    logger.info("Push notification sent successfully to flat {}-{}",
+                            visitor.getBuildingNumber(), visitor.getFlatNumber());
+                } catch (Exception ex) {
+                    logger.error("Failed to send push notification", ex);
+                }
+            }
         }
+
+        // 🔟 Prepare response
+        Map<String, Object> visitorData = new HashMap<>();
+        visitorData.put("guestName", visitor.getGuestName());
+        visitorData.put("mobile", visitor.getMobile());
+        visitorData.put("flatNumber", visitor.getFlatNumber());
+        visitorData.put("buildingNumber", visitor.getBuildingNumber());
+        visitorData.put("visitPurpose", visitor.getVisitPurpose());
+        visitorData.put("vehicleDetails", visitor.getVehicleDetails());
+        visitorData.put("visitTime", visitor.getVisitTime() != null ? visitor.getVisitTime().toString() : null);
+        visitorData.put("approvalLink", approvalLink);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Guest entry recorded successfully. Approval link sent via SMS and push notification.");
+        response.put("data", visitorData);
+
+        return ResponseEntity.ok(response);
+
+    } catch (Exception e) {
+        logger.error("Error occurred while recording guest entry", e);
+        return internalServerErrorResponse("Failed to record guest entry due to server error");
     }
+}
+
+// 🔹 Helper methods to reduce repetition
+private ResponseEntity<Map<String, Object>> unauthorizedResponse(String msg) {
+    Map<String, Object> response = new HashMap<>();
+    response.put("success", false);
+    response.put("message", msg);
+    response.put("data", null);
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+}
+
+private ResponseEntity<Map<String, Object>> forbiddenResponse(String msg) {
+    Map<String, Object> response = new HashMap<>();
+    response.put("success", false);
+    response.put("message", msg);
+    response.put("data", null);
+    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+}
+
+private ResponseEntity<Map<String, Object>> badRequestResponse(String msg) {
+    Map<String, Object> response = new HashMap<>();
+    response.put("success", false);
+    response.put("message", msg);
+    response.put("data", null);
+    return ResponseEntity.badRequest().body(response);
+}
+
+private ResponseEntity<Map<String, Object>> internalServerErrorResponse(String msg) {
+    Map<String, Object> response = new HashMap<>();
+    response.put("success", false);
+    response.put("message", msg);
+    response.put("data", null);
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+}
+
 
     @GetMapping("/test")
     public ResponseEntity<String> test() {
