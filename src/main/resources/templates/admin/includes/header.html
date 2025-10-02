@@ -1,0 +1,200 @@
+<div th:fragment="header">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,300,400,600,700,800,900" rel="stylesheet">
+    <link rel="stylesheet" href="https://themewagon.github.io/Ready-Bootstrap-Dashboard/assets/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://themewagon.github.io/Ready-Bootstrap-Dashboard/assets/css/ready.css">
+    <script>
+    // Redirect to login if token is missing and not already on login page
+    if (!localStorage.getItem('adminToken') && window.location.pathname !== '/admin/login') {
+        window.location.href = '/admin/login';
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        // Display username from localStorage
+        const adminUsername = localStorage.getItem('adminUsername');
+        if (adminUsername) {
+            // Update the username in the top bar next to the profile picture
+            const profileUsernameSpan = document.querySelector('.profile-pic > span');
+            if (profileUsernameSpan) {
+                profileUsernameSpan.textContent = adminUsername;
+            }
+
+            // Update the username in the dropdown user box
+            const dropdownUsernameH4 = document.querySelector('.user-box .u-text h4');
+            if (dropdownUsernameH4) {
+                dropdownUsernameH4.textContent = adminUsername;
+            }
+        } else {
+            // Optional: Handle cases where username might be missing but token exists
+            // For instance, redirect to login or show a generic name
+            console.warn("Admin username not found in localStorage.");
+            // If strictly required and not on login, could redirect:
+            // if (window.location.pathname !== '/admin/login') {
+            //    window.location.href = '/admin/login';
+            // }
+        }
+
+        // Use event delegation for dropdown menu (logout)
+        document.body.addEventListener('mousedown', function (event) {
+            const logoutBtn = event.target.closest('#logoutBtn');
+            if (logoutBtn) {
+                event.preventDefault(); // Prevent <a> tag from refreshing the page
+                event.stopPropagation(); // Prevent dropdown from closing
+                console.log('Logout clicked'); // Debug
+
+                const token = localStorage.getItem('adminToken');
+                if (!token) {
+                    alert("Token missing. Please login again.");
+                    localStorage.removeItem('adminUsername'); // Clear username as well
+                    window.location.href = "/admin/login"; // Redirect to login
+                    return;
+                }
+
+                fetch('http://localhost:8080/api/admin/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                })
+                .then(res => {
+                    if (!res.ok) {
+                         // Even if logout fails on server, proceed to clear client-side session
+                        console.error("Logout API call failed with status:", res.status);
+                        throw new Error("Logout failed on server, but cleaning up client.");
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    // Regardless of server success, clear local storage and redirect
+                    console.log("Logout response data:", data); // Log server response
+                })
+                .catch(err => {
+                    console.error("Logout error:", err.message);
+                })
+                .finally(() => {
+                    // This block executes regardless of success or failure of fetch/then
+                    localStorage.removeItem('adminToken');
+                    localStorage.removeItem('adminUsername');
+                    window.location.href = "/admin/login";
+                });
+            }
+        });
+    });
+    </script>
+    <div class="main-header">
+        <div class="logo-header" data-background-color="blue">
+            <a href="index.html" class="logo text-white">Ready Dashboard</a>
+            <button class="navbar-toggler sidenav-toggler ml-auto" type="button" data-toggle="collapse" data-target="#sidebar">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <button class="topbar-toggler more"><i class="la la-ellipsis-v"></i></button>
+        </div>
+
+        <nav class="navbar navbar-header navbar-expand-lg">
+            <div class="container-fluid">
+                <form class="navbar-left navbar-form nav-search mr-md-3" action="">
+                    <div class="input-group">
+                        <input type="text" placeholder="Search ..." class="form-control">
+                        <div class="input-group-append">
+                            <span class="input-group-text">
+                                <i class="la la-search search-icon"></i>
+                            </span>
+                        </div>
+                    </div>
+                </form>
+                <ul class="navbar-nav topbar-nav ml-md-auto align-items-center">
+                    <li class="nav-item dropdown hidden-caret">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <i class="la la-envelope"></i>
+                        </a>
+                        <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                            <a class="dropdown-item" href="#">Action</a>
+                            <a class="dropdown-item" href="#">Another action</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="#">Something else here</a>
+                        </div>
+                    </li>
+                    <li class="nav-item dropdown hidden-caret">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <i class="la la-bell"></i>
+                            <span class="notification">3</span>
+                        </a>
+                        <ul class="dropdown-menu notif-box" aria-labelledby="navbarDropdown">
+                            <li>
+                                <div class="dropdown-title">You have 4 new notification</div>
+                            </li>
+                            <li>
+                                <div class="notif-center">
+                                    <a href="#">
+                                        <div class="notif-icon notif-primary"> <i class="la la-user-plus"></i> </div>
+                                        <div class="notif-content">
+                                            <span class="block">
+                                                New user registered
+                                            </span>
+                                            <span class="time">5 minutes ago</span>
+                                        </div>
+                                    </a>
+                                    <a href="#">
+                                        <div class="notif-icon notif-success"> <i class="la la-comment"></i> </div>
+                                        <div class="notif-content">
+                                            <span class="block">
+                                                Rahmad commented on Admin
+                                            </span>
+                                            <span class="time">12 minutes ago</span>
+                                        </div>
+                                    </a>
+                                    <a href="#">
+                                        <div class="notif-img">
+                                            <img src="/images/ananta_logo.png" alt="Img Profile">
+                                        </div>
+                                        <div class="notif-content">
+                                            <span class="block">
+                                                Reza send messages to you
+                                            </span>
+                                            <span class="time">12 minutes ago</span>
+                                        </div>
+                                    </a>
+                                    <a href="#">
+                                        <div class="notif-icon notif-danger"> <i class="la la-heart"></i> </div>
+                                        <div class="notif-content">
+                                            <span class="block">
+                                                Farrah liked Admin
+                                            </span>
+                                            <span class="time">17 minutes ago</span>
+                                        </div>
+                                    </a>
+                                </div>
+                            </li>
+                            <li>
+                                <a class="see-all" href="javascript:void(0);"> <strong>See all notifications</strong> <i class="la la-angle-right"></i> </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="dropdown-toggle profile-pic" data-toggle="dropdown" href="#" aria-expanded="false">
+                            <img src="/images/ananta_logo.png" alt="user-img" width="36" class="img-circle">
+                            <span>Hizrian</span> </a>
+                        <ul class="dropdown-menu dropdown-user">
+                            <li>
+                                <div class="user-box">
+                                    <div class="u-img"><img src="/images/ananta_logo.png" alt="user"></div>
+                                    <div class="u-text">
+                                        <h4>Hizrian</h4> <p class="text-muted">hello@themekita.com</p><a href="profile.html" class="btn btn-rounded btn-danger btn-sm">View Profile</a>
+                                    </div>
+                                </div>
+                            </li>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="#"><i class="ti-user"></i> My Profile</a>
+                            <a class="dropdown-item" href="#"></i> My Balance</a>
+                            <a class="dropdown-item" href="#"><i class="ti-email"></i> Inbox</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="#"><i class="ti-settings"></i> Account Setting</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="#" id="logoutBtn"><i class="fa fa-power-off"></i> Logout</a>
+                        </ul>
+                        </li>
+                </ul>
+            </div>
+        </nav>
+    </div>
+</div>

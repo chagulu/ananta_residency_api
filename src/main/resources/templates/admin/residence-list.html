@@ -1,0 +1,192 @@
+<div th:replace="~{admin/includes/header :: header}"></div>
+
+<div class="wrapper">
+    <div th:replace="~{admin/includes/sidebar :: sidebar}"></div>
+
+    <div class="main-panel">
+        <div class="content">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Residence Listing</div>
+                </div>
+                <div class="card-body">
+                    <div class="card-sub">Below is a responsive table displaying residence entries.</div>
+
+                    <!-- Filters -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <input type="text" id="filter-name" class="form-control" placeholder="Filter by Name">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" id="filter-mobile" class="form-control" placeholder="Filter by Mobile">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" id="filter-flat" class="form-control" placeholder="Filter by Flat No">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" id="filter-building" class="form-control" placeholder="Filter by Building No">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-2">
+                            <button class="btn btn-primary" onclick="resetAndApplyFilters()">Apply Filters</button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="residence-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Mobile</th>
+                                    <th>Flat No</th>
+                                    <th>Building No</th>
+                                    <th>Created By</th>
+                                </tr>
+                            </thead>
+                            <tbody id="residence-table-body">
+                                <!-- Data rows will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <nav aria-label="Residence pagination">
+                        <ul class="pagination justify-content-center" id="pagination-controls"></ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+
+        <div th:replace="admin/includes/footer :: footer"></div>
+    </div>
+</div>
+
+<script>
+    let currentPage = 1;
+    const pageSize = 10;
+    let totalPages = 1;
+
+    function resetAndApplyFilters() {
+        currentPage = 1;
+        applyFilters(currentPage);
+    }
+
+    function applyFilters(page = 1) {
+        currentPage = page;
+
+        const name = document.getElementById("filter-name").value.trim();
+        const mobile = document.getElementById("filter-mobile").value.trim();
+        const flat = document.getElementById("filter-flat").value.trim();
+        const building = document.getElementById("filter-building").value.trim();
+
+        const queryParams = new URLSearchParams();
+        queryParams.append("page", currentPage - 1); // ✅ Spring expects 0-based page index
+        queryParams.append("size", pageSize);
+        if (name) queryParams.append("name", name);
+        if (mobile) queryParams.append("mobileNo", mobile);
+        if (flat) queryParams.append("flatNumber", flat);
+        if (building) queryParams.append("buildingNumber", building);
+
+        const adminToken = localStorage.getItem("adminToken");
+        if (!adminToken) {
+            console.error("Admin token not found in localStorage. Redirecting to login.");
+            window.location.href = '/admin/login';
+            return;
+        }
+
+        // --- FIX START: Change the API endpoint URL ---
+        fetch(`/api/admin/residences?${queryParams.toString()}`, {
+        // --- FIX END ---
+            headers: {
+                "Authorization": "Bearer " + adminToken
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    console.error("Unauthorized or Forbidden: Token might be invalid or expired. Clearing token and redirecting to login.");
+                    localStorage.removeItem('adminToken');
+                    localStorage.removeItem('adminUsername');
+                    window.location.href = '/admin/login';
+                }
+                throw new Error("Failed to fetch residence data: " + response.statusText);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const tbody = document.getElementById("residence-table-body");
+            tbody.innerHTML = "";
+
+            const residences = data.content || [];
+            totalPages = data.totalPages || 1;
+
+            if (residences && residences.length > 0) {
+                residences.forEach((res, index) => {
+                    const rowNumber = (currentPage - 1) * pageSize + index + 1;
+                    const row = `
+                        <tr>
+                            <td>${rowNumber}</td>
+                            <td>${res.name || ''}</td>
+                            <td>${res.mobileNo || ''}</td>
+                            <td>${res.flatNumber || ''}</td>
+                            <td>${res.buildingNumber || ''}</td>
+                            <td>${res.createdById || ''}</td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            } else {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center">No residence data found.</td></tr>`;
+            }
+
+            renderPaginationControls();
+        })
+        .catch(err => {
+            console.error("Error loading residences:", err);
+            const tbody = document.getElementById("residence-table-body");
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error loading data: ${err.message}. Please try again.</td></tr>`;
+        });
+    }
+
+    function renderPaginationControls() {
+        const pagination = document.getElementById("pagination-controls");
+        pagination.innerHTML = "";
+
+        pagination.innerHTML += `
+            <li class="page-item ${currentPage === 1 ? "disabled" : ""}">
+                <a class="page-link" href="#" onclick="changePage(${currentPage - 1}); return false;">&laquo;</a>
+            </li>
+        `;
+
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            pagination.innerHTML += `
+                <li class="page-item ${i === currentPage ? "active" : ""}">
+                    <a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a>
+                </li>
+            `;
+        }
+
+        pagination.innerHTML += `
+            <li class="page-item ${currentPage === totalPages ? "disabled" : ""}">
+                <a class="page-link" href="#" onclick="changePage(${currentPage + 1}); return false;">&raquo;</a>
+            </li>
+        `;
+    }
+
+    function changePage(page) {
+        if (page < 1 || page > totalPages) return;
+        applyFilters(page);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => applyFilters());
+</script>
+
+

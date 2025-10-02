@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ananta Residency - Admin Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .app-container {
+            background-color: white;
+            padding: 30px 20px;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .app-container img {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 10px;
+        }
+
+        .app-container h1 {
+            font-size: 22px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 14px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            border-radius: 8px;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #responseMessage {
+            margin-top: 10px;
+            color: red;
+            font-size: 14px;
+        }
+
+        @media screen and (max-width: 500px) {
+            .app-container {
+                padding: 20px 15px;
+                border-radius: 0;
+                height: 100vh;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <img src="/images/ananta_logo.png" alt="Ananta Residency Logo">
+        <h1>Admin Login</h1>
+        <form id="adminLoginForm">
+            <input type="text" id="username" name="username" placeholder="Enter Username" required />
+            <input type="password" id="password" name="password" placeholder="Enter Password" required />
+            <button type="submit">Login</button>
+        </form>
+        <p id="responseMessage"></p>
+    </div>
+
+   <script src="/admin/js/login.js"></script>
+</body>
+</html>

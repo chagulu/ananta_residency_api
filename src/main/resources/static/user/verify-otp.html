@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ananta Residency - Verify OTP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .app-container {
+            background-color: white;
+            padding: 30px 20px;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .app-container img {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 10px;
+        }
+
+        .app-container h1 {
+            font-size: 22px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 14px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            border-radius: 8px;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #responseMessage {
+            margin-top: 10px;
+            color: red;
+            font-size: 14px;
+        }
+
+        @media screen and (max-width: 500px) {
+            .app-container {
+                padding: 20px 15px;
+                border-radius: 0;
+                height: 100vh;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <img src="/images/ananta_logo.png" alt="Ananta Residency Logo">
+        <h1>Verify OTP</h1>
+        <p>Mobile Number: <span id="mobileNo"></span></p>
+        <form id="verifyOtpForm">
+            <input type="text" id="otp" placeholder="Enter OTP" required />
+            <button type="submit">Verify OTP</button>
+        </form>
+        <p id="responseMessage"></p>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const mobileNo = urlParams.get('mobileNo');
+        document.getElementById('mobileNo').innerText = mobileNo;
+
+        document.getElementById('verifyOtpForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const otp = document.getElementById('otp').value;
+
+            fetch('http://localhost:8080/auth/verify-otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ mobileNo: mobileNo, otp: otp })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('responseMessage').style.color = 'green';
+                    document.getElementById('responseMessage').innerText = 'OTP Verified Successfully!';
+                    // Optionally redirect
+                    window.location.href = `/user/visitors-listing.html?token=${data.token}`;
+                } else {
+                    document.getElementById('responseMessage').innerText = 'OTP Verification Failed! Requesting new OTP...';
+
+                    // Call send-otp again
+                    fetch('http://localhost:8080/auth/send-otp', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ mobileNo: mobileNo })
+                    })
+                    .then(sendResp => sendResp.json())
+                    .then(sendData => {
+                        if (sendData.success) {
+                            document.getElementById('responseMessage').innerText = 'OTP Verification Failed. A new OTP has been sent.';
+                        } else {
+                            document.getElementById('responseMessage').innerText = 'Failed to resend OTP.';
+                        }
+                    })
+                    .catch(err => {
+                        document.getElementById('responseMessage').innerText = 'Error resending OTP: ' + err;
+                    });
+                }
+            })
+            .catch(error => {
+                document.getElementById('responseMessage').innerText = 'Error verifying OTP: ' + error;
+            });
+        });
+    </script>
+</body>
+</html>

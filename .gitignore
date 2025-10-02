@@ -1,0 +1,44 @@
+# Logs
+logs/
+
+# Misc
+HELP.md
+
+# Build outputs
+target/
+build/
+
+# Maven Wrapper
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IDE: STS
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# IDE: IntelliJ IDEA
+.idea
+*.iws
+*.iml
+*.ipr
+
+# IDE: NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# IDE: VS Code
+.vscode/
+
+# ✅ Firebase Service Account (secret)
+src/main/resources/firebase/serviceAccountKey.json

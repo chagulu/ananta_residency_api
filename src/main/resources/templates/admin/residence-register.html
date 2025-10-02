@@ -1,0 +1,176 @@
+<div th:replace="~{admin/includes/header :: header}"></div>
+
+<div class="wrapper">
+    <div th:replace="~{admin/includes/sidebar :: sidebar}"></div>
+
+    <div class="main-panel">
+        <div class="content">
+            <div class="page-inner">
+                <div class="row">
+                    <div class="col-md-8 mx-auto">
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Resident Registration Form</div>
+                            </div>
+                            <div class="card-body">
+                                <form id="residenceRegisterForm">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="name">Resident Name</label>
+                                                <input type="text" class="form-control input-square" id="name" name="name" placeholder="Enter full name" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="mobileNo">Mobile Number</label>
+                                                <input type="tel" class="form-control input-square" id="mobileNo" name="mobileNo" placeholder="Enter mobile number" pattern="[0-9]{10}" maxlength="10" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="password">Password</label>
+                                                <input type="password" class="form-control input-square" id="password" name="password" placeholder="Set password" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="email">Email (Optional)</label>
+                                                <input type="email" class="form-control input-square" id="email" name="email" placeholder="Enter email address">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="buildingNumber">Building Number</label>
+                                                <select class="form-control input-square" id="buildingNumber" name="buildingNumber" required>
+                                                    <option value="">Select Building</option>
+                                                    <option value="A1">A1</option>
+                                                    <option value="A2">A2</option>
+                                                    <option value="A3">A3</option>
+                                                    <option value="A4">A4</option>
+                                                    <option value="A5">A5</option>
+                                                    <option value="A6">A6</option>
+                                                    <option value="A7">A7</option>
+                                                    <option value="A8">A8</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="flatNumber">Flat Number</label>
+                                                <select class="form-control input-square" id="flatNumber" name="flatNumber" required>
+                                                    <option value="">Select Flat</option>
+                                                    <option value="A1">A1</option>
+                                                    <option value="A2">A2</option>
+                                                    <option value="B1">B1</option>
+                                                    <option value="B2">B2</option>
+                                                    <option value="C1">C1</option>
+                                                    <option value="C2">C2</option>
+                                                    <option value="D1">D1</option>
+                                                    <option value="D2">D2</option>
+                                                    <option value="E1">E1</option>
+                                                    <option value="E2">E2</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="totalMembers">Total Members</label>
+                                                <input type="number" class="form-control input-square" id="totalMembers" name="totalMembers" placeholder="Number of members in flat" min="1" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="vehicleDetails">Vehicle Details (Optional)</label>
+                                                <input type="text" class="form-control input-square" id="vehicleDetails" name="vehicleDetails" placeholder="e.g., Car: MH01AB1234">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="card-action">
+                                <button type="submit" class="btn btn-success" form="residenceRegisterForm">Register Resident</button>
+                                <button type="button" class="btn btn-danger" onclick="window.history.back()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div th:replace="admin/includes/footer :: footer"></div>
+    </div>
+</div>
+
+<script src="/admin/js/core/jquery.3.2.1.min.js"></script>
+<script src="/admin/js/core/popper.min.js"></script>
+<script src="/admin/js/core/bootstrap.min.js"></script>
+<script src="/admin/js/plugin/jquery-ui-1.12.1.custom/jquery-ui.min.js"></script>
+<script src="/admin/js/plugin/jquery-ui-touch-punch/jquery.ui.touch-punch.min.js"></script>
+<script src="/admin/js/plugin/jquery-scrollbar/jquery.scrollbar.min.js"></script>
+<script src="/admin/js/atlantis.min.js"></script>
+
+
+<script>
+    document.getElementById('residenceRegisterForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        const form = event.target;
+        const formData = {
+            residenceName: form.name.value,
+            mobileNo: form.mobileNo.value,
+            password: form.password.value,
+            email: form.email.value,
+            buildingNumber: form.buildingNumber.value,
+            flatNumber: form.flatNumber.value,
+            // REMOVED: pincode: form.pincode.value, // <--- REMOVE THIS LINE
+            totalMembers: parseInt(form.totalMembers.value),
+            vehicleDetails: form.vehicleDetails.value
+        };
+
+        // Basic client-side validation (adjust if pincode was mandatory)
+        if (!formData.residenceName || !formData.mobileNo || !formData.password ||
+            !formData.buildingNumber || !formData.flatNumber || isNaN(formData.totalMembers)) {
+            alert('Please fill in all required fields (Resident Name, Mobile, Password, Building, Flat, Total Members).');
+            return;
+        }
+
+        const adminToken = localStorage.getItem("adminToken");
+        if (!adminToken) {
+            console.error("Admin token not found in localStorage. Redirecting to login.");
+            window.location.href = '/admin/login';
+            return;
+        }
+
+        fetch('/api/admin/residences/register-resident', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + adminToken
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    console.error("Unauthorized or Forbidden: Token might be invalid or expired.");
+                    localStorage.removeItem('adminToken');
+                    localStorage.removeItem('adminUsername');
+                    alert('Your session has expired or is invalid. Please log in again.');
+                    window.location.href = '/admin/login';
+                    throw new Error("Unauthorized or Forbidden. Redirecting to login.");
+                }
+
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    return response.json().then(errJson => {
+                        // The backend now sends { "success": false, "message": "...", "data": null }
+                        throw new Error(errJson.message || 'Unknown error from server.');
+                    });
+                } else {
+                    // Fallback for non-JSON responses, though ideally all errors are JSON now
+                    return response.text().then(errText => {
+                        throw new Error(errText || 'An unexpected error occurred from server.');
+                    });
+                }
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Resident registered successfully! ID: ' + (data.id || 'N/A'));
+            form.reset();
+            window.location.href = '/admin/residences';
+        })
+        .catch(error => {
+            console.error('Registration API Error:', error);
+            alert('Registration Failed: ' + error.message); // This will display the specific error message
+        });
+    });
+</script>

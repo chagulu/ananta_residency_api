@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ananta Residency - Visitors Listing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 20px 0 40px;
+    }
+
+    .app-container {
+      background-color: white;
+      padding: 20px;
+      width: 90%;
+      max-width: 800px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      position: relative;
+    }
+
+    .app-container h1 {
+      font-size: 22px;
+      color: #333;
+      margin-bottom: 15px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      overflow-x: auto;
+      display: block;
+    }
+
+    th, td {
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f2f2f2;
+    }
+
+    .pagination {
+      margin-top: 15px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .pagination button {
+      padding: 10px;
+      border: 1px solid #ddd;
+      background-color: #28a745;
+      color: white;
+      margin: 5px;
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    .pagination button:hover:not(:disabled) {
+      background-color: #218838;
+    }
+
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: default;
+      background-color: #a5d6a7;
+    }
+
+    a#residenceEntryLink {
+      display: inline-block;
+      padding: 10px 15px;
+      background-color: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: bold;
+    }
+
+    .filter-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .filter-container input {
+      flex: 1;
+      min-width: 150px;
+      padding: 8px;
+      font-size: 16px;
+    }
+
+    .filter-container button {
+      padding: 10px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    @media (max-width: 600px) {
+      .filter-container {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .filter-container input,
+      .filter-container button {
+        width: 100%;
+      }
+
+      th, td {
+        font-size: 14px;
+        padding: 6px;
+      }
+
+      .pagination button {
+        font-size: 12px;
+        padding: 8px;
+      }
+
+      a#residenceEntryLink {
+        font-size: 12px;
+        padding: 8px 12px;
+      }
+    }
+
+    .edit-btn {
+      padding: 5px 10px;
+      background-color: #ffc107;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .edit-btn:hover {
+      background-color: #e0a800;
+    }
+
+    /* Message container */
+    #messageContainer {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      max-width: 90%;
+      min-width: 300px;
+      padding: 15px 25px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 16px;
+      color: white;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+
+    #messageContainer.success {
+      background-color: #28a745;
+    }
+
+    #messageContainer.error {
+      background-color: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div style="text-align: right; margin: 20px;">
+      <a id="residenceEntryLink" href="#">+ Visitor Entry</a>
+    </div>
+
+    <h1>Visitors Listing</h1>
+
+    <div class="filter-container">
+      <input type="text" id="searchGuestName" placeholder="Guest Name" />
+      <input type="text" id="searchMobile" placeholder="Mobile" />
+      <input type="text" id="searchFlatNumber" placeholder="Flat Number" />
+      <input type="text" id="searchBuildingNumber" placeholder="Building Number" />
+      <button onclick="applyFilters()">Search</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Guest Name</th>
+          <th>Mobile</th>
+          <th>Flat Number</th>
+          <th>Building Number</th>
+          <th>Visit Purpose</th>
+          <th>Vehicle Details</th>
+           <th>Status</th>
+          <th>Visit Time</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="visitorList"></tbody>
+    </table>
+
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+  <!-- Message container -->
+  <div id="messageContainer"></div>
+
+  <script>
+    let currentPage = 0;
+    const pageSize = 5;
+
+    let currentFilters = {
+      guestName: '',
+      mobile: '',
+      flatNumber: '',
+      buildingNumber: ''
+    };
+
+    function showMessage(message, type = 'success') {
+      const msgEl = document.getElementById('messageContainer');
+      msgEl.textContent = message;
+      msgEl.className = type;
+      msgEl.style.display = 'block';
+      msgEl.style.opacity = '1';
+
+      setTimeout(() => {
+        msgEl.style.opacity = '0';
+        setTimeout(() => {
+          msgEl.style.display = 'none';
+        }, 500);
+      }, 3000);
+    }
+
+    function applyFilters() {
+      currentFilters.guestName = document.getElementById('searchGuestName').value.trim();
+      currentFilters.mobile = document.getElementById('searchMobile').value.trim();
+      currentFilters.flatNumber = document.getElementById('searchFlatNumber').value.trim();
+      currentFilters.buildingNumber = document.getElementById('searchBuildingNumber').value.trim();
+
+      currentPage = 0; // Reset to first page on filter change
+      fetchVisitors(currentPage, currentFilters);
+    }
+
+    async function fetchVisitors(page = 0, filters = {}) {
+      const token = new URLSearchParams(window.location.search).get('token');
+      if (!token) {
+        showMessage("Missing token. Redirecting to login...", 'error');
+        setTimeout(() => window.location.href = "/user/send-otp", 1500);
+        return;
+      }
+
+      const queryParams = new URLSearchParams();
+      if (filters.guestName) queryParams.append("guestName", filters.guestName);
+      if (filters.mobile) queryParams.append("mobile", filters.mobile);
+      if (filters.flatNumber) queryParams.append("flatNumber", filters.flatNumber);
+      if (filters.buildingNumber) queryParams.append("buildingNumber", filters.buildingNumber);
+      queryParams.append("page", page);
+
+      try {
+        const response = await fetch(`/api/visitor?${queryParams.toString()}`, {
+          headers: {
+            'Authorization': 'Bearer ' + token
+          }
+        });
+
+        if (response.status === 401) {
+          showMessage("Session expired. Please log in again.", 'error');
+          setTimeout(() => window.location.href = "/user/send-otp", 1500);
+          return;
+        }
+
+        if (!response.ok) throw new Error("Failed to fetch visitors");
+
+        const data = await response.json();
+        populateVisitors(data.visitors, token);
+        createPagination(data.totalPages, filters);
+      } catch (error) {
+        console.error("Error fetching visitors:", error);
+        showMessage("An error occurred while fetching visitors.", 'error');
+        setTimeout(() => window.location.href = "/user/send-otp", 1500);
+      }
+    }
+
+    function populateVisitors(visitors, token) {
+      const table = document.getElementById('visitorList');
+      table.innerHTML = '';
+
+      visitors.forEach(visitor => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${visitor.guestName}</td>
+          <td>${visitor.mobile}</td>
+          <td>${visitor.flatNumber}</td>
+          <td>${visitor.buildingNumber}</td>
+          <td>${visitor.visitPurpose}</td>
+          <td>${visitor.vehicleDetails || '-'}</td>
+          <td>${visitor.approveStatus || '-'}</td>
+          <td>${new Date(visitor.visitTime).toLocaleString()}</td>
+          <td>
+            <button class="edit-btn" onclick="editVisitor(${visitor.id}, '${token}')">✏️ Edit</button>
+          </td>
+        `;
+        table.appendChild(row);
+      });
+    }
+
+    function createPagination(totalPages, filters = {}) {
+      const paginationContainer = document.getElementById('pagination');
+      paginationContainer.innerHTML = '';
+
+      const prevButton = document.createElement('button');
+      prevButton.innerText = 'Previous';
+      prevButton.disabled = currentPage === 0;
+      prevButton.addEventListener('click', () => {
+        if (currentPage > 0) {
+          currentPage--;
+          fetchVisitors(currentPage, filters);
+        }
+      });
+
+      const nextButton = document.createElement('button');
+      nextButton.innerText = 'Next';
+      nextButton.disabled = currentPage === totalPages - 1;
+      nextButton.addEventListener('click', () => {
+        if (currentPage < totalPages - 1) {
+          currentPage++;
+          fetchVisitors(currentPage, filters);
+        }
+      });
+
+      paginationContainer.appendChild(prevButton);
+      paginationContainer.appendChild(nextButton);
+    }
+
+    function editVisitor(id, token) {
+      window.location.href = `/user/edit-visitor.html?token=${encodeURIComponent(token)}&id=${id}`;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchVisitors(currentPage, currentFilters);
+
+      const token = new URLSearchParams(window.location.search).get('token');
+      const entryLink = document.getElementById('residenceEntryLink');
+
+      if (entryLink) {
+        entryLink.addEventListener('click', (event) => {
+          event.preventDefault();
+          if (token) {
+            window.location.href = `/user/visitor-entry.html?token=${token}`;
+          } else {
+            window.location.href = '/user/send-otp';
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>
