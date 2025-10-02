@@ -58,7 +58,8 @@ public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
             "data", Map.of(
                 "token", jwtToken,
                 "expiresIn", 3600,
-                "username", username
+                "username", username,
+                "role", "ROLE_SUPERADMIN"
             )
         );
         return ResponseEntity.ok(responseBody);
