@@ -108,7 +108,7 @@ public ResponseEntity<Map<String, Object>> recordGuestEntry(
         String userMobile = jwtUtil.extractUsername(token);
         logger.debug("Authenticated user mobile from token: {}", userMobile);
 
-        // 5️⃣ Create approval token
+        // 5️⃣ Create approval token (for internal tracking only)
         String approvalToken = UUID.randomUUID().toString();
 
         // 6️⃣ Save visitor
@@ -127,37 +127,49 @@ public ResponseEntity<Map<String, Object>> recordGuestEntry(
         guestEntryRepository.save(visitor);
         logger.info("Guest entry saved successfully for guest: {}", visitor.getGuestName());
 
-        // 7️⃣ Build approval link
-        String approvalLink = baseUrl + "/api/visitor/approve?token=" + approvalToken;
-
-        // 8️⃣ SMS message
-        String message = "Guest " + visitor.getGuestName() + " wants to visit. Approve/Reject: " + approvalLink;
-
-        // 9️⃣ Fetch resident details
+        // 7️⃣ Fetch resident details
         Residence residence = residenceService.getResidenceByFlatAndBuilding(
                 visitor.getFlatNumber(), visitor.getBuildingNumber());
 
         if (residence != null) {
             String residentMobile = residence.getMobileNo();
-            boolean smsSent = otpService.sendOtp(residentMobile, message);
+
+            // 🔹 SMS message (no approval link)
+            String smsMessage = "Visitor " + visitor.getGuestName() +
+                    " has arrived (" + visitor.getVisitPurpose() + "). Please check in the app.";
+            boolean smsSent = otpService.sendOtp(residentMobile, smsMessage);
             if (!smsSent) {
-                logger.warn("Failed to send approval SMS to resident mobile: {}", residentMobile);
+                logger.warn("Failed to send SMS to resident mobile: {}", residentMobile);
             }
 
-            // 🔔 Push Notification (new part)
+            // 🔔 Push Notification (deep link to visitor list)
             if (residence.getFcmToken() != null && !residence.getFcmToken().isEmpty()) {
                 try {
-                    String pushMessage = "Visitor " + visitor.getGuestName() + " has arrived (" + visitor.getVisitPurpose() + ")";
-                    fcmService.sendNotification(residence.getFcmToken(), "Visitor Entry", pushMessage);
+                    String pushMessage = "Visitor " + visitor.getGuestName() +
+                            " has arrived (" + visitor.getVisitPurpose() + "). Please review in app.";
+
+                    Map<String, String> dataPayload = new HashMap<>();
+                    dataPayload.put("route", "/visitorList"); // Flutter app navigates here
+
+                    fcmService.sendNotification(
+                            residence.getFcmToken(),
+                            "Visitor Entry",
+                            pushMessage,
+                            dataPayload
+                    );
+
                     logger.info("Push notification sent successfully to flat {}-{}",
                             visitor.getBuildingNumber(), visitor.getFlatNumber());
+
                 } catch (Exception ex) {
                     logger.error("Failed to send push notification", ex);
                 }
             }
         }
 
-        // 🔟 Prepare response
+        // 🔟 Prepare response (include approval link here)
+        String approvalLink = baseUrl + "/api/visitor/approve?token=" + approvalToken;
+
         Map<String, Object> visitorData = new HashMap<>();
         visitorData.put("guestName", visitor.getGuestName());
         visitorData.put("mobile", visitor.getMobile());
@@ -166,11 +178,11 @@ public ResponseEntity<Map<String, Object>> recordGuestEntry(
         visitorData.put("visitPurpose", visitor.getVisitPurpose());
         visitorData.put("vehicleDetails", visitor.getVehicleDetails());
         visitorData.put("visitTime", visitor.getVisitTime() != null ? visitor.getVisitTime().toString() : null);
-        visitorData.put("approvalLink", approvalLink);
+        visitorData.put("approvalLink", approvalLink); // Only in response
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
-        response.put("message", "Guest entry recorded successfully. Approval link sent via SMS and push notification.");
+        response.put("message", "Guest entry recorded successfully. Notification sent to resident.");
         response.put("data", visitorData);
 
         return ResponseEntity.ok(response);
@@ -180,6 +192,8 @@ public ResponseEntity<Map<String, Object>> recordGuestEntry(
         return internalServerErrorResponse("Failed to record guest entry due to server error");
     }
 }
+
+
 
 // 🔹 Helper methods to reduce repetition
 private ResponseEntity<Map<String, Object>> unauthorizedResponse(String msg) {

@@ -34,6 +34,7 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/css/**", "/js/**", "/images/**", "/webjars/**", "/favicon.ico",
                     "/admin/css/**", "/admin/js/**", "/admin/images/**",
+                    "/api/visitor/approve",
 
                     // Public APIs (e.g., login, OTP)
                     "/guard/auth/**",
@@ -57,7 +58,6 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/user/**",
                     "/api/guest/**",
-                    "/api/visitor/approve",
                     "/api/residences"
                 ).authenticated()
 
