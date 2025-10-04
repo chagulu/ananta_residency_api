@@ -50,11 +50,21 @@ public class DashboardService {
         data.put("pending", pending);
         data.put("todayVisitors", todayVisitors);
 
-        // Example events (static)
-        data.put("events", List.of(
-                Map.of("title", "Fire Drill", "date", "2025-10-05"),
-                Map.of("title", "Annual Meeting", "date", "2025-10-10")
-        ));
+        // Fetch top 2 upcoming events for all buildings (Admin sees all)
+        List<Event> upcomingEvents = eventRepository.findTop2ByEventDateAfterOrderByEventDateAsc(LocalDateTime.now());
+        List<Map<String, Object>> events = upcomingEvents.stream()
+                .map(event -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("title", event.getTitle());
+                    map.put("description", event.getDescription());
+                    map.put("date", event.getEventDate());
+                    map.put("buildingNumber", event.getBuildingNumber());
+                    map.put("flatNumber", event.getFlatNumber());
+                    return map;
+                })
+                .collect(Collectors.toList());
+
+        data.put("events", events);
 
         return data;
     }
@@ -104,11 +114,10 @@ public class DashboardService {
         long todayVisitors = visitorRepository.count((root, query, cb) ->
                 cb.between(root.get("visitTime"), today.atStartOfDay(), today.plusDays(1).atStartOfDay()));
 
-        // Fetch top 2 upcoming events
-        LocalDateTime now = LocalDateTime.now();
-        List<Event> upcomingEvents = eventRepository.findTop2ByEventDateAfterOrderByEventDateAsc(now);
+        // Fetch top 2 upcoming events for resident's building
+        List<Event> upcomingEvents = eventRepository.findTop2UpcomingEventsForBuilding(LocalDateTime.now(), buildingNumber);
 
-        // Map events to List<Map<String, Object>>
+
         List<Map<String, Object>> events = upcomingEvents.stream()
                 .map(event -> {
                     Map<String, Object> map = new HashMap<>();
@@ -137,9 +146,27 @@ public class DashboardService {
     // ================== Guard Dashboard ==================
     public Map<String, Object> getGuardDashboard(String mobile) {
         Map<String, Object> data = new HashMap<>();
+
         long pendingVisitors = visitorRepository.count((root, query, cb) ->
                 cb.equal(root.get("approveStatus"), Visitor.ApproveStatus.PENDING));
         data.put("pendingVisitors", pendingVisitors);
+
+        // Fetch top 2 upcoming events for guard (all buildings)
+        List<Event> upcomingEvents = eventRepository.findTop2ByEventDateAfterOrderByEventDateAsc(LocalDateTime.now());
+        List<Map<String, Object>> events = upcomingEvents.stream()
+                .map(event -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("title", event.getTitle());
+                    map.put("description", event.getDescription());
+                    map.put("date", event.getEventDate());
+                    map.put("buildingNumber", event.getBuildingNumber());
+                    map.put("flatNumber", event.getFlatNumber());
+                    return map;
+                })
+                .collect(Collectors.toList());
+
+        data.put("events", events);
+
         return data;
     }
 }

@@ -57,7 +57,7 @@ public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
             "message", "Login successful",
             "data", Map.of(
                 "token", jwtToken,
-                "expiresIn", 3600,
+                "expiresIn", 3600000,
                 "username", username,
                 "role", "ROLE_SUPERADMIN"
             )

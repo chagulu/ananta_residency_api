@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
+@RequestMapping("/api")
 public class DashboardController {
 
     @Autowired
@@ -23,7 +24,7 @@ public class DashboardController {
     private ResidenceRepository residenceRepository;
 
     // ------------------ Admin Dashboard ------------------
-    @GetMapping("/api/admin/dashboard")
+    @GetMapping("/admin/dashboard")
     public ResponseEntity<Map<String, Object>> getAdminDashboard() {
         Map<String, Object> response = new HashMap<>();
         try {
@@ -40,13 +41,13 @@ public class DashboardController {
     }
 
     // ------------------ Resident Dashboard ------------------
-    @GetMapping("/api/resident/dashboard")
+    @GetMapping("/resident/dashboard")
     public ResponseEntity<Map<String, Object>> getResidentDashboard(
             @RequestHeader(name = "Authorization") String authHeader) {
         Map<String, Object> response = new HashMap<>();
         try {
             String token = authHeader.substring(7);
-            String mobile = jwtUtil.extractUsername(token); // pass mobile/username
+            String mobile = jwtUtil.extractUsername(token);
 
             Map<String, Object> data = dashboardService.getResidentDashboard(mobile);
             response.put("success", true);
@@ -62,7 +63,7 @@ public class DashboardController {
     }
 
     // ------------------ Guard Dashboard ------------------
-    @GetMapping("/api/guard/dashboard")
+    @GetMapping("/guard/dashboard")
     public ResponseEntity<Map<String, Object>> getGuardDashboard(
             @RequestHeader(name = "Authorization") String authHeader) {
         Map<String, Object> response = new HashMap<>();
