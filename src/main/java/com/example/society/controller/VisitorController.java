@@ -25,7 +25,6 @@ public class VisitorController {
 
     private final VisitorRepository visitorRepository;
     private final ResidenceService residenceService;
-    private final OtpService otpService;
     private final JwtUtil jwtUtil;
 
     @Value("${app.base-url}")
@@ -39,7 +38,6 @@ public class VisitorController {
     ) {
         this.visitorRepository = visitorRepository;
         this.residenceService = residenceService;
-        this.otpService = otpService;
         this.jwtUtil = jwtUtil;
     }
 
