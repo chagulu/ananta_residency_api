@@ -4,7 +4,6 @@ import com.example.society.entity.Event;
 import com.example.society.model.Residence;
 import com.example.society.repository.EventRepository;
 import com.example.society.repository.ResidenceRepository;
-import com.example.society.service.FcmService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class EventService {
