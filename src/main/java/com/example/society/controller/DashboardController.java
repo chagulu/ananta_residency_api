@@ -2,7 +2,6 @@ package com.example.society.controller;
 
 import com.example.society.admin.service.DashboardService;
 import com.example.society.jwt.JwtUtil;
-import com.example.society.repository.ResidenceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,8 +19,6 @@ public class DashboardController {
     @Autowired
     private JwtUtil jwtUtil;
 
-    @Autowired
-    private ResidenceRepository residenceRepository;
 
     // ------------------ Admin Dashboard ------------------
     @GetMapping("/admin/dashboard")
