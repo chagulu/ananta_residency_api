@@ -76,4 +76,6 @@ public class ResidenceService {
         return residenceRepository.findByMobileNo(mobileNo)
                 .orElseThrow(() -> new RuntimeException("Residence not found for mobile: " + mobileNo));
     }
+
+    
 }

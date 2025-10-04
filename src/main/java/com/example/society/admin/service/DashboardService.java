@@ -46,7 +46,7 @@ public class DashboardService {
         data.put("pending", pending);
         data.put("todayVisitors", todayVisitors);
 
-        // Example events (you can fetch from DB if you have an Event entity)
+        // Example events (static for now, can fetch from DB if available)
         data.put("events", List.of(
                 Map.of("title", "Fire Drill", "date", "2025-10-05"),
                 Map.of("title", "Annual Meeting", "date", "2025-10-10")
@@ -55,32 +55,29 @@ public class DashboardService {
         return data;
     }
 
-
-    // Inside DashboardService.java
-
-        // Resident dashboard
-        public Map<String, Object> getResidentDashboard(String mobile) {
+    // Resident dashboard
+    public Map<String, Object> getResidentDashboard(String mobile) {
         Map<String, Object> data = new HashMap<>();
 
-        // Example: Fetch visitor stats for this resident
+        // Total visitors for this resident
         long totalVisitors = visitorRepository.count((root, query, cb) ->
-                cb.equal(root.get("residentMobile"), mobile));
+                cb.equal(root.get("mobile"), mobile));
 
         long approved = visitorRepository.count((root, query, cb) ->
                 cb.and(
-                        cb.equal(root.get("residentMobile"), mobile),
+                        cb.equal(root.get("mobile"), mobile),
                         cb.equal(root.get("approveStatus"), Visitor.ApproveStatus.APPROVED)
                 ));
 
         long rejected = visitorRepository.count((root, query, cb) ->
                 cb.and(
-                        cb.equal(root.get("residentMobile"), mobile),
+                        cb.equal(root.get("mobile"), mobile),
                         cb.equal(root.get("approveStatus"), Visitor.ApproveStatus.REJECTED)
                 ));
 
         long pending = visitorRepository.count((root, query, cb) ->
                 cb.and(
-                        cb.equal(root.get("residentMobile"), mobile),
+                        cb.equal(root.get("mobile"), mobile),
                         cb.equal(root.get("approveStatus"), Visitor.ApproveStatus.PENDING)
                 ));
 
@@ -90,20 +87,18 @@ public class DashboardService {
         data.put("pending", pending);
 
         return data;
-        }
+    }
 
-        // Guard dashboard
-        public Map<String, Object> getGuardDashboard(String mobile) {
+    // Guard dashboard
+    public Map<String, Object> getGuardDashboard(String mobile) {
         Map<String, Object> data = new HashMap<>();
 
-        // Example: Show pending visitor approvals for guards
+        // Show pending visitor approvals for guards
         long pendingVisitors = visitorRepository.count((root, query, cb) ->
                 cb.equal(root.get("approveStatus"), Visitor.ApproveStatus.PENDING));
 
         data.put("pendingVisitors", pendingVisitors);
 
         return data;
-        }
-
-
+    }
 }

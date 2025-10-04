@@ -18,27 +18,31 @@ public class VisitorSpecification {
             if (filters.containsKey("id")) {
                 predicates.add(cb.equal(root.get("id"), Long.parseLong(filters.get("id"))));
             }
+
             if (filters.containsKey("guestName")) {
-                predicates.add(cb.like(cb.lower(root.get("guestName")), "%" + filters.get("guestName").toLowerCase() + "%"));
+                predicates.add(cb.like(cb.lower(root.get("guestName")),
+                        "%" + filters.get("guestName").toLowerCase() + "%"));
             }
+
             if (filters.containsKey("mobile")) {
-                // changed to LIKE for partial search
                 predicates.add(cb.like(root.get("mobile"), "%" + filters.get("mobile") + "%"));
             }
+
             if (filters.containsKey("approveStatus")) {
                 predicates.add(cb.equal(root.get("approveStatus"),
                         Visitor.ApproveStatus.valueOf(filters.get("approveStatus"))));
             }
 
-            // restrict by resident’s flat & building
+            // ✅ Correct property names for flat and building
             if (filters.containsKey("flatNumber")) {
                 predicates.add(cb.equal(root.get("flatNumber"), filters.get("flatNumber")));
             }
+
             if (filters.containsKey("buildingNumber")) {
                 predicates.add(cb.equal(root.get("buildingNumber"), filters.get("buildingNumber")));
             }
 
-            // ✅ Date range filter
+            // Optional date range filter
             if (filters.containsKey("fromDate") && filters.containsKey("toDate")) {
                 LocalDateTime from = LocalDateTime.parse(filters.get("fromDate"));
                 LocalDateTime to = LocalDateTime.parse(filters.get("toDate"));

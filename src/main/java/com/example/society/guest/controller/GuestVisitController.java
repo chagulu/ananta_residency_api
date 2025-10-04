@@ -72,7 +72,7 @@ public class GuestVisitController {
     // =========================
     // Manual Guard Entry (keep)
     // =========================
-    @PostMapping("/entry")
+@PostMapping("/entry")
 public ResponseEntity<Map<String, Object>> recordGuestEntry(
         @RequestHeader(name = "Authorization", required = false) String authHeader,
         @Valid @RequestBody GuestVisitRequest request,
@@ -81,37 +81,27 @@ public ResponseEntity<Map<String, Object>> recordGuestEntry(
     logger.info("Received request to record guest entry");
 
     try {
-        // 1️⃣ Validate Authorization header
+        // Validate Authorization header
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            logger.warn("Authorization header is missing or malformed");
             return unauthorizedResponse("Missing or invalid Authorization header");
         }
 
         String token = authHeader.substring(7);
-
-        // 2️⃣ Validate JWT
         if (!jwtUtil.validateToken(token)) {
-            logger.warn("JWT token is invalid or expired");
             return forbiddenResponse("Invalid or expired token");
         }
 
-        // 3️⃣ Handle validation errors
+        // Validation errors
         if (bindingResult.hasErrors()) {
             String errorMsg = bindingResult.getAllErrors().stream()
-                    .map(error -> error.getDefaultMessage())
+                    .map(e -> e.getDefaultMessage())
                     .collect(Collectors.joining("; "));
-            logger.warn("Validation errors: {}", errorMsg);
             return badRequestResponse(errorMsg);
         }
 
-        // 4️⃣ Extract mobile from JWT
         String userMobile = jwtUtil.extractUsername(token);
-        logger.debug("Authenticated user mobile from token: {}", userMobile);
 
-        // 5️⃣ Create approval token (for internal tracking only)
-        String approvalToken = UUID.randomUUID().toString();
-
-        // 6️⃣ Save visitor
+        // Save visitor entry
         Visitor visitor = new Visitor();
         visitor.setGuestName(request.getGuestName());
         visitor.setMobile(request.getMobile());
@@ -121,55 +111,50 @@ public ResponseEntity<Map<String, Object>> recordGuestEntry(
         visitor.setVehicleDetails(request.getVehicleDetails());
         visitor.setVisitTime(LocalDateTime.now());
         visitor.setCreatedBy(userMobile);
-        visitor.setToken(approvalToken);
+        visitor.setToken(UUID.randomUUID().toString());
         visitor.setApproveStatus(Visitor.ApproveStatus.PENDING);
 
         guestEntryRepository.save(visitor);
-        logger.info("Guest entry saved successfully for guest: {}", visitor.getGuestName());
+        logger.info("Guest entry saved for {}", visitor.getGuestName());
 
-        // 7️⃣ Fetch resident details
-        Residence residence = residenceService.getResidenceByFlatAndBuilding(
-                visitor.getFlatNumber(), visitor.getBuildingNumber());
+        // Attempt to fetch residence safely
+        Residence residence = null;
+        try {
+            residence = residenceService.getResidenceByFlatAndBuilding(
+                    visitor.getBuildingNumber(), visitor.getFlatNumber() // ✅ Correct order
+            );
+        } catch (Exception ex) {
+            logger.warn("Residence not found for Flat: {}, Building: {}. Skipping notification.",
+                    visitor.getFlatNumber(), visitor.getBuildingNumber());
+        }
 
         if (residence != null) {
             String residentMobile = residence.getMobileNo();
 
-            // 🔹 SMS message (no approval link)
+            // SMS
             String smsMessage = "Visitor " + visitor.getGuestName() +
                     " has arrived (" + visitor.getVisitPurpose() + "). Please check in the app.";
             boolean smsSent = otpService.sendOtp(residentMobile, smsMessage);
-            if (!smsSent) {
-                logger.warn("Failed to send SMS to resident mobile: {}", residentMobile);
-            }
+            if (!smsSent) logger.warn("Failed to send SMS to resident {}", residentMobile);
 
-            // 🔔 Push Notification (deep link to visitor list)
-            if (residence.getFcmToken() != null && !residence.getFcmToken().isEmpty()) {
+            // Push notification
+            if (StringUtils.hasText(residence.getFcmToken())) {
+                Map<String, String> dataPayload = Map.of("route", "/visitorList");
                 try {
-                    String pushMessage = "Visitor " + visitor.getGuestName() +
-                            " has arrived (" + visitor.getVisitPurpose() + "). Please review in app.";
-
-                    Map<String, String> dataPayload = new HashMap<>();
-                    dataPayload.put("route", "/visitorList"); // Flutter app navigates here
-
                     fcmService.sendNotification(
                             residence.getFcmToken(),
                             "Visitor Entry",
-                            pushMessage,
+                            smsMessage,
                             dataPayload
                     );
-
-                    logger.info("Push notification sent successfully to flat {}-{}",
-                            visitor.getBuildingNumber(), visitor.getFlatNumber());
-
+                    logger.info("Push notification sent to flat {}-{}", visitor.getBuildingNumber(), visitor.getFlatNumber());
                 } catch (Exception ex) {
                     logger.error("Failed to send push notification", ex);
                 }
             }
         }
 
-        // 🔟 Prepare response (include approval link here)
-        String approvalLink = baseUrl + "/api/visitor/approve?token=" + approvalToken;
-
+        // Response
         Map<String, Object> visitorData = new HashMap<>();
         visitorData.put("guestName", visitor.getGuestName());
         visitorData.put("mobile", visitor.getMobile());
@@ -177,25 +162,22 @@ public ResponseEntity<Map<String, Object>> recordGuestEntry(
         visitorData.put("buildingNumber", visitor.getBuildingNumber());
         visitorData.put("visitPurpose", visitor.getVisitPurpose());
         visitorData.put("vehicleDetails", visitor.getVehicleDetails());
-        visitorData.put("visitTime", visitor.getVisitTime() != null ? visitor.getVisitTime().toString() : null);
-        visitorData.put("approvalLink", approvalLink); // Only in response
+        visitorData.put("visitTime", visitor.getVisitTime());
+        visitorData.put("approvalLink", baseUrl + "/api/visitor/approve?token=" + visitor.getToken());
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "Guest entry recorded successfully. Notification sent to resident.");
-        response.put("data", visitorData);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Guest entry recorded successfully. Notification sent if residence exists.",
+                "data", visitorData
+        ));
 
     } catch (Exception e) {
-        logger.error("Error occurred while recording guest entry", e);
+        logger.error("Error recording guest entry", e);
         return internalServerErrorResponse("Failed to record guest entry due to server error");
     }
 }
 
-
-
-// 🔹 Helper methods to reduce repetition
+    // 🔹 Helper methods to reduce repetition
 private ResponseEntity<Map<String, Object>> unauthorizedResponse(String msg) {
     Map<String, Object> response = new HashMap<>();
     response.put("success", false);

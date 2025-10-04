@@ -11,7 +11,7 @@ public class Residence {
     private Long id;
 
     @Column(nullable = false)
-    private String name; // Resident's full name
+    private String name;
 
     @Column(nullable = false, length = 15, unique = true)
     private String mobileNo;
@@ -41,7 +41,7 @@ public class Residence {
     private String state;
 
     @Column(name = "fcm_token", length = 255)
-    private String fcmToken;   // ✅ new field for push notifications
+    private String fcmToken;
 
     @ManyToOne
     @JoinColumn(name = "created_by")
