@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: ananta-residency-api
+    env: docker
+    plan: free
+    branch: master
+    buildCommand: ""          # Dockerfile handles build
+    startCommand: ""          # Dockerfile handles start
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: JAVA_VERSION
+        value: 17
+      - key: APP_BASE_URL
+        value: https://ananta-residency-api.onrender.com
+      - key: SPRING_DATASOURCE_URL
+        value: jdbc:postgresql://dpg-d3hmqvh5pdvs73fd750g-a.oregon-postgres.render.com:5432/anantaresidency
+      - key: SPRING_DATASOURCE_USERNAME
+        value: anantaresidency_user
+      - key: SPRING_DATASOURCE_PASSWORD
+        value: HAjiXgT9CuMA9JFQaOAUSWiid7aKvyxi
+      - key: JWT_SECRET
+        value: ZjRrNW5kOW41IyQlXjhIZjkoKiZeXiYlaGpkZnM3ODMyNGZkc2Y5NyQlXiQlXl4=
+      - key: MSG91_AUTHKEY
+        value: 447680AQ4ibxgGG68074300P1
+      - key: MSG91_SENDERID
+        value: ANANTARES
+      - key: MSG91_ROUTE
+        value: 2
+      - key: MSG91_COUNTRY
+        value: 91
