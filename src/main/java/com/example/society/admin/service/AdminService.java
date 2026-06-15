@@ -86,37 +86,62 @@ public class AdminService {
     }
 
     public ResponseEntity<?> login(LoginRequest loginRequest) {
-        Optional<Admin> optionalAdmin = adminRepository.findByUsername(loginRequest.getUsername());
 
-        if (optionalAdmin.isPresent()) {
-            Admin admin = optionalAdmin.get();
+    System.out.println("=== ADMIN LOGIN START ===");
+    System.out.println("Username: " + loginRequest.getUsername());
 
-            if (!admin.getActive()) {
-                return ResponseEntity.status(403).body(Map.of(
-                        "status", "error",
-                        "message", "Account is disabled"
-                ));
-            }
+    Optional<Admin> optionalAdmin =
+            adminRepository.findByUsername(loginRequest.getUsername());
 
-            if (passwordEncoder.matches(loginRequest.getPassword(), admin.getPassword())) {
-                logLogin(admin.getUsername());
+    System.out.println("Admin found: " + optionalAdmin.isPresent());
 
-                // Generate JWT token passing username and roles
-                String token = generateJwtToken(admin);
+    if (optionalAdmin.isPresent()) {
 
-                // Return token and username
-                return ResponseEntity.ok().body(Map.of(
-                        "token", token,
-                        "username", admin.getUsername()
-                ));
-            }
+        Admin admin = optionalAdmin.get();
+
+        System.out.println("Admin ID: " + admin.getId());
+        System.out.println("Active: " + admin.getActive());
+        System.out.println("Role: " + admin.getRole());
+        System.out.println("Password Encoder: " + passwordEncoder);
+        System.out.println("JWT Service: " + jwtService);
+
+        if (!admin.getActive()) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "status", "error",
+                    "message", "Account is disabled"
+            ));
         }
 
-        return ResponseEntity.status(401).body(Map.of(
-                "status", "error",
-                "message", "Invalid credentials"
-        ));
+        System.out.println("Checking password...");
+
+        boolean matched = passwordEncoder.matches(
+                loginRequest.getPassword(),
+                admin.getPassword());
+
+        System.out.println("Password matched: " + matched);
+
+        if (matched) {
+
+            logLogin(admin.getUsername());
+
+            System.out.println("Generating JWT...");
+
+            String token = generateJwtToken(admin);
+
+            System.out.println("JWT generated successfully");
+
+            return ResponseEntity.ok().body(Map.of(
+                    "token", token,
+                    "username", admin.getUsername()
+            ));
+        }
     }
+
+    return ResponseEntity.status(401).body(Map.of(
+            "status", "error",
+            "message", "Invalid credentials"
+    ));
+}
 
     // Generate JWT token with username and roles
     private String generateJwtToken(Admin admin) {
@@ -146,5 +171,49 @@ public class AdminService {
 
         adminRepository.save(admin);
         return "Sub-admin registered successfully.";
+    }
+
+    public String createOrResetSuperAdmin() {
+
+        Optional<Admin> optionalAdmin =
+                adminRepository.findByUsername("admin");
+
+        String encodedPassword =
+                passwordEncoder.encode("Admin@123");
+
+        if (optionalAdmin.isPresent()) {
+
+            // Reset existing admin password
+            Admin admin = optionalAdmin.get();
+
+            admin.setPassword(encodedPassword);
+            admin.setActive(true);
+            admin.setStatus(1);
+            admin.setRole(Admin.Role.ADMIN);
+
+            adminRepository.save(admin);
+
+            return "Super Admin password reset successfully.\n"
+                    + "Username: admin\n"
+                    + "Password: Admin@123";
+        }
+
+        // Create new admin
+        Admin admin = Admin.builder()
+                .username("admin")
+                .name("Super Admin")
+                .email("admin@ananta.com")
+                .password(encodedPassword)
+                .role(Admin.Role.ADMIN)
+                .active(true)
+                .status(1)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        adminRepository.save(admin);
+
+        return "Super Admin created successfully.\n"
+                + "Username: admin\n"
+                + "Password: Admin@123";
     }
 }

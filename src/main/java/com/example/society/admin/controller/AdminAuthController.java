@@ -105,4 +105,23 @@ public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
             return ResponseEntity.status(400).body("Error registering subadmin: " + e.getMessage());
         }
     }
+
+    @PostMapping("/create-super-admin")
+    public ResponseEntity<?> createSuperAdmin() {
+        try {
+            String message = adminService.createOrResetSuperAdmin();
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", message
+            ));
+
+        } catch (Exception e) {
+
+            return ResponseEntity.internalServerError().body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
+    }
 }

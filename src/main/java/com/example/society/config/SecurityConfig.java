@@ -47,7 +47,8 @@ public class SecurityConfig {
                     "/admin/dashboard",
                     "/admin/visitors",
                     "/admin/residences",
-                    "/admin/residences/register"
+                    "/admin/residences/register",
+                    "/api/admin/create-super-admin"   // TEMPORARY
                 ).permitAll()
 
 
